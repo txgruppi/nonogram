@@ -27,21 +27,21 @@ func run() error {
 		return err
 	}
 	fmt.Printf("analized %d boards in %s\n", count, took.String())
-	fmt.Printf("found %d solutions\n", len(solved))
-	for _, s := range solved {
-		printer.PrintBoard(os.Stdout, s)
-		fmt.Println("")
+	if solved == nil {
+		fmt.Println("no solution found")
+		return nil
 	}
-	if len(solved) > 0 {
-		out, err := os.Create("solution.png")
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-		err = image.Render(out, solved[0])
-		if err != nil {
-			return fmt.Errorf("failed to render image: %w", err)
-		}
+
+	printer.PrintBoard(os.Stdout, solved)
+	fmt.Println("")
+	out, err := os.Create("solution.png")
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	err = image.Render(out, solved)
+	if err != nil {
+		return fmt.Errorf("failed to render image: %w", err)
 	}
 	return nil
 }

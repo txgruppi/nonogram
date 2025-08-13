@@ -1,8 +1,10 @@
 package printer
 
 import (
+	"fmt"
 	"io"
 	"nonogram/board"
+	"time"
 )
 
 func PrintBoard(w io.Writer, b *board.Board) {
@@ -20,4 +22,20 @@ func PrintBoard(w io.Writer, b *board.Board) {
 		}
 		_, _ = w.Write([]byte("\n"))
 	}
+}
+
+var (
+	lastPrint time.Time
+)
+
+func PrintBoardOnceASecond(w io.Writer, b *board.Board, count *uint64) {
+	if time.Since(lastPrint) < time.Second {
+		return
+	}
+	lastPrint = time.Now()
+	if count != nil {
+		fmt.Fprintf(w, "%d\n", *count)
+	}
+	PrintBoard(w, b)
+	_, _ = w.Write([]byte("\n"))
 }
