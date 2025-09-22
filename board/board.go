@@ -46,9 +46,6 @@ func (t *Board) Set(x, y int, state cellState) error {
 	if i < 0 || i >= len(t.cells) {
 		return ErrCellOutOfBounds{}
 	}
-	if t.cells[i] != Empty {
-		return ErrCellAlreadySet{}
-	}
 	t.cells[i] = state
 	return nil
 }

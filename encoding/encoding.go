@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+var (
+	errEmptyLine = errors.New("empty line encountered")
+)
+
 func Decode(r io.Reader) (*board.Board, *hint.Hints, error) {
 	scanner := bufio.NewScanner(r)
 	width, height, err := decodeSize(scanner)
@@ -21,6 +25,10 @@ func Decode(r io.Reader) (*board.Board, *hint.Hints, error) {
 	horizontal := make([][]int, height)
 	for x := 0; x < width; x++ {
 		hints, err := decodeHints(scanner)
+		if errors.Is(err, errEmptyLine) {
+			x--
+			continue
+		}
 		if err != nil {
 			return nil, nil, err
 		}
@@ -28,20 +36,32 @@ func Decode(r io.Reader) (*board.Board, *hint.Hints, error) {
 	}
 	for y := 0; y < height; y++ {
 		hints, err := decodeHints(scanner)
+		if errors.Is(err, errEmptyLine) {
+			y--
+			continue
+		}
 		if err != nil {
 			return nil, nil, err
 		}
 		horizontal[y] = hints
 	}
 	for {
-		x, y, err := decodePosition(scanner)
+		x, y, v, err := decodeKnownCell(scanner)
+		if errors.Is(err, errEmptyLine) {
+			continue
+		}
 		if errors.As(err, &ErrUnexpectedEOF{}) {
 			break
 		}
 		if err != nil {
 			return nil, nil, err
 		}
-		b.Set(x, y, board.Crossed)
+		switch v {
+		case 0:
+			b.Set(x, y, board.Crossed)
+		case 1:
+			b.Set(x, y, board.Filled)
+		}
 	}
 	return b, hint.New(vertical, horizontal), nil
 }
@@ -74,6 +94,10 @@ func decodeHints(scanner *bufio.Scanner) ([]int, error) {
 		return nil, ErrUnexpectedEOF{}
 	}
 	line := scanner.Text()
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return nil, errEmptyLine
+	}
 	fields := strings.Fields(line)
 	hints := make([]int, len(fields))
 	for i, field := range fields {
@@ -89,22 +113,30 @@ func decodeHints(scanner *bufio.Scanner) ([]int, error) {
 	return hints, nil
 }
 
-func decodePosition(scanner *bufio.Scanner) (int, int, error) {
+func decodeKnownCell(scanner *bufio.Scanner) (int, int, int, error) {
 	if !scanner.Scan() {
-		return -1, -1, ErrUnexpectedEOF{}
+		return -1, -1, -1, ErrUnexpectedEOF{}
 	}
 	line := scanner.Text()
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return -1, -1, -1, errEmptyLine
+	}
 	fields := strings.Fields(line)
-	if len(fields) != 2 {
-		return -1, -1, ErrInvalidPosition{}
+	if len(fields) != 3 {
+		return -1, -1, -1, ErrInvalidPosition{}
 	}
 	x, err := strconv.Atoi(fields[0])
 	if err != nil || x < 0 {
-		return -1, -1, err
+		return -1, -1, -1, err
 	}
 	y, err := strconv.Atoi(fields[1])
 	if err != nil || y < 0 {
-		return -1, -1, err
+		return -1, -1, -1, err
 	}
-	return x, y, nil
+	v, err := strconv.Atoi(fields[2])
+	if err != nil || (v != 0 && v != 1) {
+		return -1, -1, -1, ErrInvalidValue{expected: "0 or 1", actual: fields[2]}
+	}
+	return x, y, v, nil
 }

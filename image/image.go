@@ -14,6 +14,7 @@ const (
 var (
 	filled  []uint8
 	crossed []uint8
+	empty   []uint8
 )
 
 func init() {
@@ -23,7 +24,11 @@ func init() {
 	}
 	crossed = make([]uint8, scale*scale)
 	for i := range crossed {
-		crossed[i] = 0xFF
+		crossed[i] = 0x66
+	}
+	empty = make([]uint8, scale*scale)
+	for i := range empty {
+		empty[i] = 0xff
 	}
 }
 
@@ -45,7 +50,7 @@ func Render(w io.Writer, b *board.Board) error {
 					case board.Crossed:
 						copy(img.Pix[iy*iw+ix+bx:], crossed[ix%scale:ix%scale+1])
 					case board.Empty:
-						return ErrUnexpectedEmptyCell{}
+						copy(img.Pix[iy*iw+ix+bx:], empty[ix%scale:ix%scale+1])
 					}
 				}
 			}

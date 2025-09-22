@@ -1,5 +1,7 @@
 package encoding
 
+import "fmt"
+
 type ErrUnexpectedEOF struct {
 }
 
@@ -26,4 +28,13 @@ type ErrInvalidPosition struct {
 
 func (e ErrInvalidPosition) Error() string {
 	return "invalid position"
+}
+
+type ErrInvalidValue struct {
+	expected string
+	actual   any
+}
+
+func (e ErrInvalidValue) Error() string {
+	return "invalid value: expected " + e.expected + ", got " + fmt.Sprintf("%v", e.actual)
 }

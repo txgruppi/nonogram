@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nonogram</title>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const canvasSize = (0 | (Math.min(window.innerWidth, window.innerHeight) / 100)) * 100;
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        const cellCount = 15;
+        const state = new Array(15 * 15).fill(null);
+        const cellSize = canvasSize / cellCount;
+        ctx.strokeStyle = "#000";
+
+        function draw() {
+            ctx.lineWidth = 1;
+            for (let y = 0; y < cellCount; y++) {
+                for (let x = 0; x < cellCount; x++) {
+                    const index = y * cellCount + x;
+                    switch (state[index]) {
+                        case null:
+                            ctx.fillStyle = "white";
+                            break;
+                        case true:
+                            ctx.fillStyle = "#333";
+                            break;
+                        case false:
+                            ctx.fillStyle = "#666";
+                            break;
+                    }
+                    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                }
+            }
+            ctx.lineWidth = 3;
+            for (let y = 0; y < cellCount / 5; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * cellSize * 5);
+                ctx.lineTo(canvasSize, y * cellSize * 5);
+                ctx.stroke();
+            }
+            for (let x = 0; x < cellCount / 5; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * cellSize * 5, 0);
+                ctx.lineTo(x * cellSize * 5, canvasSize);
+                ctx.stroke();
+            }
+        }
+
+        function gridPos(mouseX, mouseY) {
+            mouseX -= canvas.getBoundingClientRect().left;
+            mouseY -= canvas.getBoundingClientRect().top;
+            if (mouseX < 0 || mouseX >= canvasSize || mouseY < 0 || mouseY >= canvasSize) {
+                return [null, null, null];
+            }
+            const col = Math.floor(mouseX / cellSize);
+            const row = Math.floor(mouseY / cellSize);
+            const index = row * cellCount + col;
+            return [col, row, index];
+        }
+
+        window.addEventListener("contextmenu", (e) => {
+            const [col, row, index] = gridPos(e.clientX, e.clientY);
+            if (col === null || row === null || index === null) {
+                return;
+            }
+            e.preventDefault();
+        })
+
+        let dragStart = null;
+        let dragState = undefined;
+        let dragDir = null;
+
+        function updateCell(col, row, index, button) {
+            if (dragState === undefined) {
+                const order = [true, false, null];
+                const curr = state[index];
+                const orderIndex = order.indexOf(curr);
+                let nextIndex = orderIndex + 1;
+                if (button === 2) {
+                    nextIndex = orderIndex - 1;
+                }
+                nextIndex = (nextIndex + order.length) % order.length;
+                state[index] = order[nextIndex];
+                dragState = state[index];
+                return;
+            }
+            state[index] = dragState;
+        }
+
+        window.addEventListener("mousedown", (e) => {
+            const [col, row, index] = gridPos(e.clientX, e.clientY);
+            if (col === null || row === null || index === null) {
+                return;
+            }
+            dragStart = [e.clientX, e.clientY];
+            updateCell(col, row, index, e.button);
+            draw();
+        });
+        window.addEventListener("mouseup", (e) => {
+            dragStart = null;
+            dragState = undefined;
+            dragDir = null;
+        });
+        window.addEventListener("mousemove", (e) => {
+            if (!dragStart) {
+                return;
+            }
+            const [col, row, index] = gridPos(e.clientX, e.clientY);
+            if (col === null || row === null || index === null) {
+                return;
+            }
+            if (dragDir === null) {
+                const [scol, srow] = gridPos(dragStart[0], dragStart[1]);
+                if (col != scol) {
+                    dragDir = "h";
+                } else if (row != srow) {
+                    dragDir = "v";
+                }
+            }
+            if (dragDir === "h" && col !== dragStart[0]) {
+                const [col, row, index] = gridPos(e.clientX, dragStart[1]);
+                updateCell(col, row, index, 0);
+                draw();
+                return;
+            }
+            if (dragDir === "v" && row !== dragStart[1]) {
+                const [col, row, index] = gridPos(dragStart[0], e.clientY);
+                updateCell(col, row, index, 0);
+                draw();
+                return;
+            }
+        });
+
+        window.addEventListener("keyup", e => {
+            if (e.key !== "Escape") {
+                return;
+            }
+            const lines = [];
+            for (let y = 0; y < cellCount; y++) {
+                for (let x = 0; x < cellCount; x++) {
+                    const index = y * cellCount + x;
+                    switch (state[index]) {
+                        case false:
+                            lines.push(`${x} ${y} 0`);
+                            break;
+
+                        case true:
+                            lines.push(`${x} ${y} 1`);
+                            break;
+                    }
+                }
+            }
+            window
+                .navigator
+                .clipboard
+                .writeText(lines.join("\n"))
+                .then(() => console.log("copied"));
+        });
+
+        draw();
+    </script>
+</body>
+
+</html>

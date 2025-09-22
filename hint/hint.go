@@ -2,6 +2,8 @@ package hint
 
 import (
 	"nonogram/board"
+	"strconv"
+	"strings"
 )
 
 func New(vertical, horizontal [][]int) *Hints {
@@ -25,48 +27,16 @@ func (t *Hints) Check(b *board.Board) (bool, error) {
 		}
 	}
 	hasEmpty := false
-	for y, hint := range t.Horizontal {
-		if len(hint) == 0 {
-			return false, ErrMissingHints{direction: "horizontal", index: y}
-		}
-		empty, filled := t.runs(b, 0, y, width, y+1)
-		if len(empty) == 0 {
-			if len(filled) != len(hint) {
-				return false, ErrInvalid{isRow: true, index: y}
-			}
-			for i, count := range filled {
-				if count != hint[i] {
-					return false, ErrInvalid{isRow: true, index: y}
-				}
-			}
-			continue
-		}
-
-		if len(filled) > len(hint) {
-			return false, ErrInvalid{isRow: true, index: y}
-		}
-
-		totalAvailable := sum(empty) + sum(filled)
-		totalHint := sum(hint)
-		if totalAvailable < totalHint {
-			return false, ErrInvalid{isRow: true, index: y}
-		}
-
-		for i := 0; i < len(filled); i++ {
-			if i < len(hint) && filled[i] > hint[i] {
-				return false, ErrInvalid{isRow: true, index: y}
-			}
-		}
-
-		hasEmpty = true
-	}
 	for x, hint := range t.Vertical {
 		if len(hint) == 0 {
 			return false, ErrMissingHints{direction: "vertical", index: x}
 		}
 		empty, filled := t.runs(b, x, 0, x+1, height)
+		if len(filled) == 0 && len(empty) == 1 && empty[0] == height {
+			continue
+		}
 		if len(empty) == 0 {
-			if len(filled) != len(hint) {
+			if len(filled) != len(hint) && len(filled) != 0 && hint[0] != 0 {
 				return false, ErrInvalid{isRow: false, index: x}
 			}
 			for i, count := range filled {
@@ -77,20 +47,39 @@ func (t *Hints) Check(b *board.Board) (bool, error) {
 			continue
 		}
 
-		if len(filled) > len(hint) {
-			return false, ErrInvalid{isRow: false, index: x}
-		}
-
 		totalAvailable := sum(empty) + sum(filled)
 		totalHint := sum(hint)
 		if totalAvailable < totalHint {
 			return false, ErrInvalid{isRow: false, index: x}
 		}
 
-		for i := 0; i < len(filled); i++ {
-			if i < len(hint) && filled[i] > hint[i] {
-				return false, ErrInvalid{isRow: false, index: x}
+		hasEmpty = true
+	}
+	for y, hint := range t.Horizontal {
+		if len(hint) == 0 {
+			return false, ErrMissingHints{direction: "horizontal", index: y}
+		}
+		empty, filled := t.runs(b, 0, y, width, y+1)
+		if len(filled) == 0 && len(empty) == 1 && empty[0] == width {
+			continue
+		}
+		if len(empty) == 0 {
+			if len(filled) != len(hint) && len(filled) != 0 && hint[0] != 0 {
+				return false, ErrInvalid{isRow: true, index: y}
 			}
+			for i, count := range filled {
+				if count != hint[i] {
+					return false, ErrInvalid{isRow: true, index: y}
+				}
+			}
+			continue
+		}
+
+		totalFilled := max(filled)
+		totalAvailable := sum(empty) + sum(filled)
+		totalHint := sum(hint)
+		if totalAvailable < totalHint || totalFilled > totalHint {
+			return false, ErrInvalid{isRow: true, index: y}
 		}
 
 		hasEmpty = true
@@ -139,6 +128,31 @@ func (t *Hints) runs(b *board.Board, x1, y1, x2, y2 int) (empty, filled []int) {
 		}
 	}
 	return empty, filled
+}
+
+func (t Hints) String() string {
+	var r strings.Builder
+	r.WriteString("Vertical:\n")
+	for _, vs := range t.Vertical {
+		for i, v := range vs {
+			if i > 0 {
+				r.WriteString(" ")
+			}
+			r.WriteString(strconv.Itoa(v))
+		}
+		r.WriteString("\n")
+	}
+	r.WriteString("\nHorizontal:\n")
+	for _, hs := range t.Horizontal {
+		for i, h := range hs {
+			if i > 0 {
+				r.WriteString(" ")
+			}
+			r.WriteString(strconv.Itoa(h))
+		}
+		r.WriteString("\n")
+	}
+	return r.String()
 }
 
 func sum(s []int) int {

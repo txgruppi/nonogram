@@ -1,13 +1,29 @@
 package printer
 
 import (
-	"fmt"
 	"io"
 	"nonogram/board"
 	"time"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
-func PrintBoard(w io.Writer, b *board.Board) {
+var mp *message.Printer
+
+func init() {
+	mp = message.NewPrinter(language.English)
+}
+
+func PrintBoard(w io.Writer, b *board.Board, count *uint64, started *time.Time) {
+	switch {
+	case count != nil && started != nil:
+		mp.Fprintf(w, "analized %d boards in %s\n", *count, time.Since(*started).String())
+	case count != nil && started == nil:
+		mp.Fprintf(w, "analized %d boards\n", *count)
+	case count == nil && started != nil:
+		mp.Fprintf(w, "time taken: %s\n", time.Since(*started).String())
+	}
 	width, height := b.Size()
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -22,20 +38,17 @@ func PrintBoard(w io.Writer, b *board.Board) {
 		}
 		_, _ = w.Write([]byte("\n"))
 	}
+	_, _ = w.Write([]byte("\n"))
 }
 
 var (
 	lastPrint time.Time
 )
 
-func PrintBoardOnceASecond(w io.Writer, b *board.Board, count *uint64) {
-	if time.Since(lastPrint) < time.Second {
+func PrintBoardOnceEachInterval(interval time.Duration, w io.Writer, b *board.Board, count *uint64, started *time.Time) {
+	if time.Since(lastPrint) < interval {
 		return
 	}
 	lastPrint = time.Now()
-	if count != nil {
-		fmt.Fprintf(w, "%d\n", *count)
-	}
-	PrintBoard(w, b)
-	_, _ = w.Write([]byte("\n"))
+	PrintBoard(w, b, count, started)
 }
